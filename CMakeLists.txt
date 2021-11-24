@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.10.2)
 project(python_interpreter)
 set(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -Ofast")
+#set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+#set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+
 include_directories(
         ${PROJECT_SOURCE_DIR}/generated/
         ${PROJECT_SOURCE_DIR}/third_party/
@@ -25,5 +28,5 @@ file(GLOB antlr4-cpp-src
         ${PROJECT_SOURCE_DIR}/third_party/runtime/src/tree/xpath/*.cpp
         )
 add_library (antlr4-cpp-runtime ${antlr4-cpp-src})
-add_executable(code ${src_dir} src/main.cpp src/Evalvisitor.cpp)
+add_executable(code ${src_dir} src/main.cpp)
 target_link_libraries(code antlr4-cpp-runtime)
