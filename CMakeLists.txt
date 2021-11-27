@@ -3,7 +3,7 @@ project(python_interpreter)
 set(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -Ofast")
 
-IF (CMAKE_BUILD_TYPE STREQUAL Debug)
+IF (CMAKE_BUILD_TYPE STREQUAL MyDebug)
     ADD_DEFINITIONS(-DDEBUG)
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
     set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
