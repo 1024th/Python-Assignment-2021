@@ -92,7 +92,7 @@ class Scope {
   bool hasVar(const std::string& varName) const { return varTable.count(varName); }
 };
 
-enum Status { GLOBAL, WHILE, FUNCTION };
+// enum Status { GLOBAL, WHILE, FUNCTION };
 
 class ScopeStack {
   std::vector<Scope> scopes;
@@ -103,6 +103,7 @@ class ScopeStack {
     scopes.push_back(Scope());
     // status.push_back(GLOBAL);
   }
+
   void varRegister(const std::string& varName, const AnyValue& varData) {
     // std::cout << "varName: " << varName << " varData: " << varData << std::endl;
     if (scopes.back().hasVar(varName)) {  // in current scope
@@ -117,11 +118,13 @@ class ScopeStack {
   }
 
   std::pair<bool, AnyValue> varQuery(const std::string& varName) const {
-    if (scopes.back().hasVar(varName)) {
-      return scopes.back().varQuery(varName);
+    auto result = scopes.back().varQuery(varName);
+    if (result.first) {
+      return result;
     }
-    if (scopes.front().hasVar(varName)) {
-      return scopes.front().varQuery(varName);
+    result = scopes.front().varQuery(varName);
+    if (result.first) {
+      return result;
     }
     // for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
     //   auto [success, val] = it->varQuery(varName);

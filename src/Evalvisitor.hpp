@@ -77,12 +77,13 @@ class EvalVisitor : public Python3BaseVisitor {
 
     int len = testlists.size();
     if (ctx->augassign()) {
-    std::string varName = testlists[0]->getText();
+      std::string varName = testlists[0]->getText();
       std::string op = ctx->augassign()->getText();
-      std::string varName2 = testlists[1]->getText();
+      // std::string varName2 = testlists[1]->getText();
       auto [success, value] = scope.varQuery(varName);
       // auto [success2, value2] = scope.varQuery(varName2);
-      AnyValue value2 = visitTestlist(testlists[1]).as<AnyValueList>()[0];
+      // AnyValue value2 = visitTestlist(testlists[1]).as<AnyValueList>()[0];
+      AnyValue value2 = visitTest(testlists[1]->test()[0]).as<AnyValue>();
       // if (success && success2) {
       if (success) {
         if (op == "+=")
