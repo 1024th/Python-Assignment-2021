@@ -1,7 +1,7 @@
 #ifndef APPLE_PIE_SCOPE_H
 #define APPLE_PIE_SCOPE_H
 
-#include <map>
+#include <unordered_map>
 #include <queue>
 #include <string>
 
@@ -61,13 +61,13 @@ class Func {
 
 class Scope {
  private:
-  std::map<std::string, AnyValue> varTable;
-  std::map<std::string, Func> funcTable;  // TODO
+  std::unordered_map<std::string, AnyValue> varTable;
+  std::unordered_map<std::string, Func> funcTable;  // TODO
 
  public:
   //  std::string name;
   Scope() : varTable() {}
-  void varRegister(const std::string& varName, AnyValue varData) { varTable[varName] = varData; }
+  void varRegister(const std::string& varName, const AnyValue& varData) { varTable[varName] = varData; }
 
   std::pair<bool, AnyValue> varQuery(const std::string& varName) const {
     auto it = varTable.find(varName);
@@ -89,21 +89,21 @@ class Scope {
     if (it == funcTable.end()) return std::make_pair(false, nullptr);
     return std::make_pair(true, it->second);
   }
-  bool hasVar(std::string varName) const { return varTable.count(varName); }
+  bool hasVar(const std::string& varName) const { return varTable.count(varName); }
 };
 
 enum Status { GLOBAL, WHILE, FUNCTION };
 
 class ScopeStack {
   std::vector<Scope> scopes;
-  std::vector<Status> status;
+  // std::vector<Status> status;
 
  public:
   ScopeStack() {
     scopes.push_back(Scope());
-    status.push_back(GLOBAL);
+    // status.push_back(GLOBAL);
   }
-  void varRegister(const std::string& varName, AnyValue varData) {
+  void varRegister(const std::string& varName, const AnyValue& varData) {
     // std::cout << "varName: " << varName << " varData: " << varData << std::endl;
     if (scopes.back().hasVar(varName)) {  // in current scope
       scopes.back().varRegister(varName, varData);
@@ -129,7 +129,7 @@ class ScopeStack {
     // }
     return std::make_pair(false, AnyValue());
   }
-  void funcRegister(Python3Parser::FuncdefContext* ctx) { scopes.back().funcRegister(ctx); }
+  void funcRegister(Python3Parser::FuncdefContext* ctx) { scopes.front().funcRegister(ctx); }
   std::pair<bool, Func> funcQuery(const std::string& funcName) const {
     // for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
     //   auto [success, val] = it->funcQuery(funcName);
@@ -138,30 +138,30 @@ class ScopeStack {
     // return std::make_pair(false, nullptr);
     return scopes.front().funcQuery(funcName);
   }
-  void enterWhile() { status.push_back(WHILE); }
-  void quitWhile() {
-    if (status.back() == WHILE) {
-      status.pop_back();
-    } else {
-      throw "Error: Current Status is not WHILE";
-    }
-  }
-  void enterFunc(Scope scope) {
+  // void enterWhile() { status.push_back(WHILE); }
+  // void quitWhile() {
+  //   if (status.back() == WHILE) {
+  //     status.pop_back();
+  //   } else {
+  //     throw "Error: Current Status is not WHILE";
+  //   }
+  // }
+  void enterFunc(const Scope& scope) {
     // std::cout << "enterFunc" << std::endl;
     scopes.push_back(scope);
-    status.push_back(FUNCTION);
+    // status.push_back(FUNCTION);
   }
   void quitFunc() {
     // std::cout << "quitFunc" << std::endl;
-    if (status.back() == FUNCTION) {
+    // if (status.back() == FUNCTION) {
       scopes.pop_back();
-      status.pop_back();
-    } else {
-      throw "Error: Current Status is not FUNCTION";
-    }
+      // status.pop_back();
+    // } else {
+      // throw "Error: Current Status is not FUNCTION";
+    // }
   }
   // bool varExistInCurrentScope(std::string varName) { return scopes.back().hasVar(varName); }
-  Status currentStatus() { return status.back(); }
+  // Status currentStatus() { return status.back(); }
 };
 
 #endif  // APPLE_PIE_SCOPE_H

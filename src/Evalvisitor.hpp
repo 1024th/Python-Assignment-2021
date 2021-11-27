@@ -11,6 +11,7 @@
 #include "utils.hpp"
 
 ScopeStack scope;
+const AnyValue True(true), False(false), None;
 
 class EvalVisitor : public Python3BaseVisitor {
   // todo:override all methods of Python3BaseVisitor
@@ -72,16 +73,16 @@ class EvalVisitor : public Python3BaseVisitor {
   }
 
   virtual antlrcpp::Any visitExpr_stmt(Python3Parser::Expr_stmtContext *ctx) override {
-    auto testlistArray = ctx->testlist();
-    std::string varName = testlistArray[0]->getText();
+    auto testlists = ctx->testlist();
 
-    int len = testlistArray.size();
+    int len = testlists.size();
     if (ctx->augassign()) {
+    std::string varName = testlists[0]->getText();
       std::string op = ctx->augassign()->getText();
-      std::string varName2 = testlistArray[1]->getText();
+      std::string varName2 = testlists[1]->getText();
       auto [success, value] = scope.varQuery(varName);
       // auto [success2, value2] = scope.varQuery(varName2);
-      AnyValue value2 = visitTestlist(testlistArray[1]).as<AnyValueList>()[0];
+      AnyValue value2 = visitTestlist(testlists[1]).as<AnyValueList>()[0];
       // if (success && success2) {
       if (success) {
         if (op == "+=")
@@ -103,15 +104,15 @@ class EvalVisitor : public Python3BaseVisitor {
     if (len == 1) {
       // TODO: check
       // No need to 实现 多返回值
-      AnyValue returnVal = visitTestlist(testlistArray[0]).as<AnyValueList>()[0];
+      AnyValue returnVal = visitTestlist(testlists[0]).as<AnyValueList>()[0];
       // std::cout << "visitExpr_stmt returns: " << returnVal << std::endl;
       return 0;  // TODO: check
     } else if (len >= 2) {
       // TODO: modify
-      AnyValueList varData = visitTestlist(testlistArray[len - 1]);
+      AnyValueList varData = visitTestlist(testlists[len - 1]).as<AnyValueList>();
       int varNum = varData.size();
       for (int i = len - 2; i >= 0; --i) {
-        auto tests = testlistArray[i]->test();  // ?
+        auto tests = testlists[i]->test();  // ?
         for (int j = 0; j < varNum; ++j) {
           // std::string varName = testlistArray[i]->getText();
           std::string varName = tests[j]->getText();
@@ -137,9 +138,9 @@ class EvalVisitor : public Python3BaseVisitor {
     if (ctx->return_stmt()) {
       // return visitTestlist(ctx->return_stmt()->testlist()).as<AnyValueList>()[0];
       auto testlist = ctx->return_stmt()->testlist();
-      if (testlist) return visitTest(testlist->test()[0]).as<AnyValue>();
+      if (testlist) return visitTest(testlist->test()[0]);
       // std::cout << "(in visitFlow_stmt) returnVal is: " << returnVal << std::endl;
-      return AnyValue();  // None
+      return None;  // None
     }
     if (ctx->break_stmt()) return AnyValue(BREAK);
     if (ctx->continue_stmt()) return AnyValue(CONTINUE);
@@ -202,7 +203,7 @@ class EvalVisitor : public Python3BaseVisitor {
   virtual antlrcpp::Any visitWhile_stmt(Python3Parser::While_stmtContext *ctx) override {
     auto test = ctx->test();
     auto suite = ctx->suite();
-    scope.enterWhile();
+    // scope.enterWhile();
     while (visitTest(test).as<AnyValue>().toBool()) {
       auto result = visitSuite(suite);
       // if (result.is<AnyValueList>()) {
@@ -211,16 +212,16 @@ class EvalVisitor : public Python3BaseVisitor {
       //   return result;
       // }
       if (result.is<AnyValue>()) {
-        AnyValue resultVal = result.as<AnyValue>();
+        AnyValue resultVal = result;
         if (resultVal.isValue()) {
-          scope.quitWhile();
+          // scope.quitWhile();
           return resultVal;
         }
         if (resultVal.isBREAK()) break;
         if (resultVal.isCONTINUE()) continue;
       }
     }
-    scope.quitWhile();
+    // scope.quitWhile();
     return 0;
     // return visitChildren(ctx);
   }
@@ -238,7 +239,7 @@ class EvalVisitor : public Python3BaseVisitor {
       auto result = visitStmt(i);
       // if (result.is<AnyValueList>()) return result;  // return value of a function
       if (result.is<AnyValue>()) {
-        AnyValue resultVal = result.as<AnyValue>();
+        AnyValue resultVal = result;
         // std::cout << "(in visitSuite) returnVal is: " << resultVal << std::endl;
         if (resultVal.isValue()) {
           return resultVal;
@@ -327,15 +328,15 @@ class EvalVisitor : public Python3BaseVisitor {
 
   virtual antlrcpp::Any visitArith_expr(Python3Parser::Arith_exprContext *ctx) override {
     auto terms = ctx->term();
-    if (terms.size() == 1) return visitTerm(terms[0]).as<AnyValue>();
+    if (terms.size() == 1) return visitTerm(terms[0]);
 
     auto ops = ctx->addorsub_op();
-    AnyValue ans = visitTerm(terms[0]).as<AnyValue>();
+    AnyValue ans = visitTerm(terms[0]);
     // std::cout << "ans: " << ans << std::endl;
 
     for (int i = 1; i < terms.size(); ++i) {
       std::string op = ops[i - 1]->getText();
-      AnyValue term2 = visitTerm(terms[i]).as<AnyValue>();
+      AnyValue term2 = visitTerm(terms[i]);
       // std::cout << "term2: " << term2 << std::endl;
       if (op == "+")
         ans += term2;
@@ -353,7 +354,7 @@ class EvalVisitor : public Python3BaseVisitor {
     if (factors.size() == 1) return visitFactor(factors[0]);
 
     auto ops = ctx->muldivmod_op();
-    AnyValue ans = visitFactor(factors[0]).as<AnyValue>();
+    AnyValue ans = visitFactor(factors[0]);
 
     for (int i = 1; i < factors.size(); ++i) {
       std::string op = ops[i - 1]->getText();
@@ -408,7 +409,7 @@ class EvalVisitor : public Python3BaseVisitor {
           std::cout << visitTest(arg->test()[0]).as<AnyValue>();
         }
         std::cout << std::endl;
-        return AnyValue();
+        return None;
       } else if (funcName == "int") {
         return AnyValue(visitTest(args[0]->test()[0]).as<AnyValue>().toBigInt());
       } else if (funcName == "float") {
@@ -423,7 +424,7 @@ class EvalVisitor : public Python3BaseVisitor {
       auto [success, func] = scope.funcQuery(funcName);
       if (!success) {
         throw Exception(NameError, funcName);
-        return AnyValue();
+        return None;
       }
       Scope funcScope;
       // arguments -> parameters
@@ -434,16 +435,16 @@ class EvalVisitor : public Python3BaseVisitor {
         if (tests.size() == 1) {
           std::string paraName = paras[i].name;
           // scope.varRegister(paraName, visitTest(tests[0]).as<AnyValue>());
-          funcScope.varRegister(paraName, visitTest(tests[0]).as<AnyValue>());
+          funcScope.varRegister(paraName, visitTest(tests[0]));
         } else {
           std::string paraName = tests[0]->getText();
           // scope.varRegister(paraName, visitTest(tests[1]).as<AnyValue>());
-          funcScope.varRegister(paraName, visitTest(tests[1]).as<AnyValue>());
+          funcScope.varRegister(paraName, visitTest(tests[1]));
         }
       }
       for (std::size_t i = 0; i < paraNum; ++i) {
         if (funcScope.hasVar(paras[i].name)) continue;
-        funcScope.varRegister(paras[i].name, visitTest(paras[i].defaultVal).as<AnyValue>());
+        funcScope.varRegister(paras[i].name, visitTest(paras[i].defaultVal));
       }
       // call the function
       scope.enterFunc(funcScope);  // directly enter this scope before processing arguments will cause error
@@ -451,9 +452,9 @@ class EvalVisitor : public Python3BaseVisitor {
       auto result = visitSuite(func.suite);
       AnyValue returnVal;
       if (result.is<AnyValue>()) {
-        returnVal = result.as<AnyValue>();
+        returnVal = result;
       } else {
-        returnVal = AnyValue();  // None
+        returnVal = None;  // None
       }
       scope.quitFunc();
       // return result[0];
@@ -475,12 +476,11 @@ class EvalVisitor : public Python3BaseVisitor {
     if (ctx->test()) {
       return visitTest(ctx->test());
     } else if (ctx->NAME()) {
-      std::string varName = ctx->NAME()->getText();
-      auto [success, value] = scope.varQuery(varName);
+      auto [success, value] = scope.varQuery(ctxText);
       if (success)
         return value;
       else
-        throw Exception(NameError, varName);
+        throw Exception(NameError, ctxText);
     } else if (ctx->NUMBER()) {
       if(ctxText.find(".") == std::string::npos)
         return AnyValue(BigInt(ctxText));
@@ -488,11 +488,11 @@ class EvalVisitor : public Python3BaseVisitor {
         return AnyValue(std::stod(ctxText));
       }
     } else if (ctxText == "None") {
-      return AnyValue();
+      return None;
     } else if (ctxText == "True") {
-      return AnyValue(true);
+      return True;
     } else if (ctxText == "False") {
-      return AnyValue(false);
+      return False;
     }
     auto strings = ctx->STRING();
     if (!strings.empty()) {
@@ -513,7 +513,7 @@ class EvalVisitor : public Python3BaseVisitor {
     auto tests = ctx->test();
     AnyValueList ans;
     for (auto i : tests) {
-      ans.push_back(visitTest(i).as<AnyValue>());
+      ans.push_back(visitTest(i));
     }
     return ans;
     // return visitChildren(ctx);
