@@ -89,7 +89,7 @@ class Scope {
     if (it == funcTable.end()) return std::make_pair(false, nullptr);
     return std::make_pair(true, it->second);
   }
-  bool hasVar(std::string varName) { return varTable.count(varName); }
+  bool hasVar(std::string varName) const { return varTable.count(varName); }
 };
 
 enum Status { GLOBAL, WHILE, FUNCTION };
@@ -117,19 +117,26 @@ class ScopeStack {
   }
 
   std::pair<bool, AnyValue> varQuery(const std::string& varName) const {
-    for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
-      auto [success, val] = it->varQuery(varName);
-      if (success) return std::make_pair(true, val);
+    if (scopes.back().hasVar(varName)) {
+      return scopes.back().varQuery(varName);
     }
+    if (scopes.front().hasVar(varName)) {
+      return scopes.front().varQuery(varName);
+    }
+    // for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
+    //   auto [success, val] = it->varQuery(varName);
+    //   if (success) return std::make_pair(true, val);
+    // }
     return std::make_pair(false, AnyValue());
   }
   void funcRegister(Python3Parser::FuncdefContext* ctx) { scopes.back().funcRegister(ctx); }
   std::pair<bool, Func> funcQuery(const std::string& funcName) const {
-    for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
-      auto [success, val] = it->funcQuery(funcName);
-      if (success) return std::make_pair(true, val);
-    }
-    return std::make_pair(false, nullptr);
+    // for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
+    //   auto [success, val] = it->funcQuery(funcName);
+    //   if (success) return std::make_pair(true, val);
+    // }
+    // return std::make_pair(false, nullptr);
+    return scopes.front().funcQuery(funcName);
   }
   void enterWhile() { status.push_back(WHILE); }
   void quitWhile() {
@@ -153,7 +160,7 @@ class ScopeStack {
       throw "Error: Current Status is not FUNCTION";
     }
   }
-  bool varExistInCurrentScope(std::string varName) { return scopes.back().hasVar(varName); }
+  // bool varExistInCurrentScope(std::string varName) { return scopes.back().hasVar(varName); }
   Status currentStatus() { return status.back(); }
 };
 
