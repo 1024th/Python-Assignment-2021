@@ -35,9 +35,9 @@ class Exception {
       default:
         break;
     }
-#ifdef DEBUG
+// #ifdef DEBUG
     std::cout << "Exception message is: " << message << std::endl;
-#endif  // DEBUG
+// #endif  // DEBUG
     // if (type == UNIMPLEMENTED)
     //   message = "Sorry, Apple Pie do not implement this.";
     // else if (type == UNDEFINED)
