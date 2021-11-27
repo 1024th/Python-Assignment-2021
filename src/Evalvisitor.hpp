@@ -2,7 +2,7 @@
 #define PYTHON_INTERPRETER_EVALVISITOR_H
 
 #include <functional>
-#include <regex>
+// #include <regex>
 #include <unordered_map>
 
 #include "Exception.hpp"
@@ -483,9 +483,9 @@ class EvalVisitor : public Python3BaseVisitor {
       else
         throw Exception(NameError, ctxText);
     } else if (ctx->NUMBER()) {
-      if(ctxText.find(".") == std::string::npos)
+      if (ctxText.find(".") == std::string::npos)
         return AnyValue(BigInt(ctxText));
-      else{
+      else {
         return AnyValue(std::stod(ctxText));
       }
     } else if (ctxText == "None") {
@@ -500,10 +500,16 @@ class EvalVisitor : public Python3BaseVisitor {
       std::string ans;
       for (auto i : strings) {
         std::string s(i->getText());
-        std::regex str_rgx("^(\"\"\"|'''|\"|')([^']*)(\"\"\"|'''|\"|')$");
-        std::smatch matches;
-        std::regex_search(s, matches, str_rgx);
-        ans += matches[2].str();
+        auto len = s.size();
+        if (s.substr(0, 3) == "\"\"\"" || s.substr(0, 3) == "'''") {
+          ans += s.substr(3, len - 6);
+        } else {
+          ans += s.substr(1, len - 2);
+        }
+        // std::regex str_rgx("^(\"\"\"|'''|\"|')([^'\"]*)(\"\"\"|'''|\"|')$");
+        // std::smatch matches;
+        // std::regex_search(s, matches, str_rgx);
+        // ans += matches[2].str();
       }
       return AnyValue(ans);
     }
