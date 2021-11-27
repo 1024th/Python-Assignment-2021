@@ -80,12 +80,14 @@ class EvalVisitor : public Python3BaseVisitor {
       std::string varName = testlists[0]->getText();
       std::string op = ctx->augassign()->getText();
       // std::string varName2 = testlists[1]->getText();
-      auto [success, value] = scope.varQuery(varName);
+      // auto [success, value] = scope.varQuery(varName);
+      auto value = scope.varQuery(varName);
+
       // auto [success2, value2] = scope.varQuery(varName2);
       // AnyValue value2 = visitTestlist(testlists[1]).as<AnyValueList>()[0];
       AnyValue value2 = visitTest(testlists[1]->test()[0]).as<AnyValue>();
       // if (success && success2) {
-      if (success) {
+      // if (success) {
         if (op == "+=")
           scope.varRegister(varName, value + value2);
         else if (op == "-=")
@@ -98,7 +100,7 @@ class EvalVisitor : public Python3BaseVisitor {
           scope.varRegister(varName, intDiv(value, value2));
         else if (op == "%=")
           scope.varRegister(varName, value % value2);
-      }
+      // }
       return 0;
     }
 
@@ -422,11 +424,12 @@ class EvalVisitor : public Python3BaseVisitor {
       }
 
       // TODO: 函数调用!
-      auto [success, func] = scope.funcQuery(funcName);
-      if (!success) {
-        throw Exception(NameError, funcName);
-        return None;
-      }
+      // auto [success, func] = scope.funcQuery(funcName);
+      // if (!success) {
+      //   throw Exception(NameError, funcName);
+      //   return None;
+      // }
+      auto func = scope.funcQuery(funcName);
       Scope funcScope;
       // arguments -> parameters
       auto &paras = func.paras;
@@ -477,11 +480,12 @@ class EvalVisitor : public Python3BaseVisitor {
     if (ctx->test()) {
       return visitTest(ctx->test());
     } else if (ctx->NAME()) {
-      auto [success, value] = scope.varQuery(ctxText);
-      if (success)
-        return value;
-      else
-        throw Exception(NameError, ctxText);
+      return scope.varQuery(ctxText);
+      // auto [success, value] = scope.varQuery(ctxText);
+      // if (success)
+      //   return value;
+      // else
+      //   throw Exception(NameError, ctxText);
     } else if (ctx->NUMBER()) {
       if (ctxText.find(".") == std::string::npos)
         return AnyValue(BigInt(ctxText));

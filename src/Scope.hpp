@@ -1,9 +1,9 @@
 #ifndef APPLE_PIE_SCOPE_H
 #define APPLE_PIE_SCOPE_H
 
-#include <unordered_map>
 #include <queue>
 #include <string>
+#include <unordered_map>
 
 #include "AnyType.hpp"
 #include "Python3BaseVisitor.h"
@@ -59,7 +59,10 @@ class Func {
   }
 };
 
+class ScopeStack;
 class Scope {
+  friend ScopeStack;
+
  private:
   std::unordered_map<std::string, AnyValue> varTable;
   std::unordered_map<std::string, Func> funcTable;  // TODO
@@ -67,6 +70,7 @@ class Scope {
  public:
   //  std::string name;
   Scope() : varTable() {}
+  AnyValue& operator[](const std::string& s) { return varTable[s]; }
   void varRegister(const std::string& varName, const AnyValue& varData) { varTable[varName] = varData; }
 
   std::pair<bool, AnyValue> varQuery(const std::string& varName) const {
@@ -84,10 +88,13 @@ class Scope {
     std::cout << " succeeded" << std::endl;
 #endif  // DEBUG
   }
-  std::pair<bool, Func> funcQuery(const std::string& funcName) const {
+  Func funcQuery(const std::string& funcName) const {
     auto it = funcTable.find(funcName);
-    if (it == funcTable.end()) return std::make_pair(false, nullptr);
-    return std::make_pair(true, it->second);
+    if (it == funcTable.end()) {
+      throw Exception(NameError, funcName);
+      return nullptr;
+    }
+    return it->second;
   }
   bool hasVar(const std::string& varName) const { return varTable.count(varName); }
 };
@@ -106,9 +113,11 @@ class ScopeStack {
 
   void varRegister(const std::string& varName, const AnyValue& varData) {
     // std::cout << "varName: " << varName << " varData: " << varData << std::endl;
-    if (scopes.back().hasVar(varName)) {  // in current scope
-      scopes.back().varRegister(varName, varData);
-      return;
+    if (scopes.size() > 1) {
+      if (scopes.back().hasVar(varName)) {  // in current scope
+        scopes.back().varRegister(varName, varData);
+        return;
+      }
     }
     if (scopes.front().hasVar(varName)) {  // in global scope
       scopes.front().varRegister(varName, varData);
@@ -117,23 +126,46 @@ class ScopeStack {
     scopes.back().varRegister(varName, varData);  // create
   }
 
-  std::pair<bool, AnyValue> varQuery(const std::string& varName) const {
-    auto result = scopes.back().varQuery(varName);
-    if (result.first) {
-      return result;
+  AnyValue varQuery(const std::string& varName) {
+    // auto result = scopes.back().varQuery(varName);
+
+    if (scopes.size() > 1) {
+      auto it = scopes.back().varTable.find(varName);
+      if (it != scopes.back().varTable.end()) {
+        return it->second;
+      }
     }
-    result = scopes.front().varQuery(varName);
-    if (result.first) {
-      return result;
+    auto it = scopes.front().varTable.find(varName);
+    if (it != scopes.front().varTable.end()) {
+      return it->second;
     }
+
+    // if (scopes.back().hasVar(varName)) {
+    //   return scopes.back()[varName];
+    // }
+    // if (scopes.front().hasVar(varName)) {
+    //   return scopes.front()[varName];
+    // }
+
+    // auto result = scopes.back().varQuery(varName);
+    // if (result.first) {
+    //   return result.second;
+    // }
+    // result = scopes.front().varQuery(varName);
+    // if (result.first) {
+    //   return result.second;
+    // }
+
     // for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
     //   auto [success, val] = it->varQuery(varName);
     //   if (success) return std::make_pair(true, val);
     // }
-    return std::make_pair(false, AnyValue());
+
+    throw Exception(NameError, varName);
+    return AnyValue();
   }
   void funcRegister(Python3Parser::FuncdefContext* ctx) { scopes.front().funcRegister(ctx); }
-  std::pair<bool, Func> funcQuery(const std::string& funcName) const {
+  Func funcQuery(const std::string& funcName) const {
     // for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
     //   auto [success, val] = it->funcQuery(funcName);
     //   if (success) return std::make_pair(true, val);
@@ -157,10 +189,10 @@ class ScopeStack {
   void quitFunc() {
     // std::cout << "quitFunc" << std::endl;
     // if (status.back() == FUNCTION) {
-      scopes.pop_back();
-      // status.pop_back();
+    scopes.pop_back();
+    // status.pop_back();
     // } else {
-      // throw "Error: Current Status is not FUNCTION";
+    // throw "Error: Current Status is not FUNCTION";
     // }
   }
   // bool varExistInCurrentScope(std::string varName) { return scopes.back().hasVar(varName); }
