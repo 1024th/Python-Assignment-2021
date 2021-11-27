@@ -153,6 +153,8 @@ class AnyValue {
         return bool(as<double>());
       case STR:
         return as<std::string>() != "";
+      case NONETYPE:
+        return false;
       default:
         throw Exception(TypeError, "unknown type!");
     }
@@ -393,6 +395,12 @@ class AnyValue {
     return !(a > b);
   }
   friend bool operator==(const AnyValue& a, const AnyValue& b) {
+    if (a.type == NONETYPE || b.type == NONETYPE) {
+      if (a.type == NONETYPE && b.type == NONETYPE)
+        return true;
+      else
+        return false;
+    }
     if (a.type == STR || b.type == STR) {
       if (a.type == STR && b.type == STR)
         return a.toString() == b.toString();
