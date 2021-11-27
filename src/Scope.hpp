@@ -2,26 +2,159 @@
 #define APPLE_PIE_SCOPE_H
 
 #include <map>
+#include <queue>
 #include <string>
 
 #include "AnyType.hpp"
+#include "Python3BaseVisitor.h"
+
+class Func {
+  struct Para {
+    std::string name;
+    Python3Parser::TestContext* defaultVal;
+    Para(std::string name_, Python3Parser::TestContext* test) : name(name_), defaultVal(test) {}
+  };
+
+ public:
+  Python3Parser::FuncdefContext* ctx;
+  // Python3Parser::ParametersContext* para;
+  std::vector<Para> paras;
+  Python3Parser::SuiteContext* suite;
+  //     defaultArguments;
+  // TODO: 执行函数
+  Func(Python3Parser::FuncdefContext* ctx_) : ctx(ctx_) {
+#ifdef DEBUG
+    std::cout << "Now creating a function: ";
+#endif  // DEBUG
+    if (ctx == nullptr) {
+#ifdef DEBUG
+      std::cout << "function is nullptr" << std::endl;
+#endif  // DEBUG
+      return;
+    }
+    suite = ctx_->suite();
+#ifdef DEBUG
+    if (suite) {
+      std::cout << "suite is not nullptr" << std::endl;
+    }
+#endif  // DEBUG
+    auto args = ctx->parameters()->typedargslist();
+    if (args) {
+#ifdef DEBUG
+      std::cout << "has parameter" << std::endl;
+#endif  // DEBUG
+      auto paraNames = args->tfpdef();
+      auto tests = args->test();
+      auto paraNum = paraNames.size();
+      auto testNum = tests.size();
+      auto shift = paraNum - testNum;
+      for (std::size_t i = 0; i < paraNum; ++i) {
+        paras.push_back(Para(paraNames[i]->getText(), i >= shift ? tests[i - shift] : nullptr));
+      }
+    } else {
+#ifdef DEBUG
+      std::cout << "not have parameter" << std::endl;
+#endif  // DEBUG
+    }
+  }
+};
 
 class Scope {
  private:
-  std::map<std::string, AnyValue> varTable; // TODO: stack
-  // std::map<std::string, Func> funcTable;  // TODO
+  std::map<std::string, AnyValue> varTable;
+  std::map<std::string, Func> funcTable;  // TODO
 
  public:
+  //  std::string name;
   Scope() : varTable() {}
-  void varRegister(const std::string& varName, AnyValue varData) {
-    varTable[varName] = varData;
-  }
+  void varRegister(const std::string& varName, AnyValue varData) { varTable[varName] = varData; }
 
   std::pair<bool, AnyValue> varQuery(const std::string& varName) const {
     auto it = varTable.find(varName);
     if (it == varTable.end()) return std::make_pair(false, AnyValue());
     return std::make_pair(true, it->second);
   }
+  void funcRegister(Python3Parser::FuncdefContext* ctx) {
+    std::string funcName = ctx->NAME()->getText();
+#ifdef DEBUG
+    std::cout << "Register function: " << funcName;
+#endif  // DEBUG
+    funcTable.emplace(funcName, Func(ctx));
+#ifdef DEBUG
+    std::cout << " succeeded" << std::endl;
+#endif  // DEBUG
+  }
+  std::pair<bool, Func> funcQuery(const std::string& funcName) const {
+    auto it = funcTable.find(funcName);
+    if (it == funcTable.end()) return std::make_pair(false, nullptr);
+    return std::make_pair(true, it->second);
+  }
+  bool hasVar(std::string varName) { return varTable.count(varName); }
+};
+
+enum Status { GLOBAL, WHILE, FUNCTION };
+
+class ScopeStack {
+  std::vector<Scope> scopes;
+  std::vector<Status> status;
+
+ public:
+  ScopeStack() {
+    scopes.push_back(Scope());
+    status.push_back(GLOBAL);
+  }
+  void varRegister(const std::string& varName, AnyValue varData) {
+    // std::cout << "varName: " << varName << " varData: " << varData << std::endl;
+    if (scopes.back().hasVar(varName)) {  // in current scope
+      scopes.back().varRegister(varName, varData);
+      return;
+    }
+    if (scopes.front().hasVar(varName)) {  // in global scope
+      scopes.front().varRegister(varName, varData);
+      return;
+    }
+    scopes.back().varRegister(varName, varData);  // create
+  }
+
+  std::pair<bool, AnyValue> varQuery(const std::string& varName) const {
+    for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
+      auto [success, val] = it->varQuery(varName);
+      if (success) return std::make_pair(true, val);
+    }
+    return std::make_pair(false, AnyValue());
+  }
+  void funcRegister(Python3Parser::FuncdefContext* ctx) { scopes.back().funcRegister(ctx); }
+  std::pair<bool, Func> funcQuery(const std::string& funcName) const {
+    for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
+      auto [success, val] = it->funcQuery(funcName);
+      if (success) return std::make_pair(true, val);
+    }
+    return std::make_pair(false, nullptr);
+  }
+  void enterWhile() { status.push_back(WHILE); }
+  void quitWhile() {
+    if (status.back() == WHILE) {
+      status.pop_back();
+    } else {
+      throw "Error: Current Status is not WHILE";
+    }
+  }
+  void enterFunc(Scope scope) {
+    // std::cout << "enterFunc" << std::endl;
+    scopes.push_back(scope);
+    status.push_back(FUNCTION);
+  }
+  void quitFunc() {
+    // std::cout << "quitFunc" << std::endl;
+    if (status.back() == FUNCTION) {
+      scopes.pop_back();
+      status.pop_back();
+    } else {
+      throw "Error: Current Status is not FUNCTION";
+    }
+  }
+  bool varExistInCurrentScope(std::string varName) { return scopes.back().hasVar(varName); }
+  Status currentStatus() { return status.back(); }
 };
 
 #endif  // APPLE_PIE_SCOPE_H

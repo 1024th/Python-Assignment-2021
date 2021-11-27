@@ -5,7 +5,7 @@
 // #include "Python3Parser.h"
 #include "utils.hpp"
 
-enum ValueType { BIGINT, BOOL, FLOAT, STR };
+enum ValueType { BIGINT, BOOL, FLOAT, STR, NONETYPE, BREAK, CONTINUE };
 
 class AnyValue {
   ValueType type;
@@ -29,7 +29,8 @@ class AnyValue {
   }
 
  public:
-  AnyValue() : value(nullptr) {}
+  // default = None
+  AnyValue() : type(NONETYPE), value(nullptr) {}
   template <class T>
   void constructFrom(T x, ValueType type_) {
     T* tmp = new T;
@@ -42,20 +43,18 @@ class AnyValue {
   template <class T>
   AnyValue& setValue(T x) {
     free();
-    // if (value) delete value;  // TODO: typed pointer
     T* tmp = new T;
     *tmp = x;
     // std::cout << *tmp << std::endl;
     value = tmp;
     return *this;
   }
+  // Only for AnyValue(BREAK) and AnyValue(CONTINUE)
+  AnyValue(ValueType t) : type(t), value(nullptr) {}
   AnyValue(const AnyValue& x) { *this = x; }
   AnyValue& operator=(const AnyValue& x) {
-    if(this == &x) return *this;
+    if (this == &x) return *this;
     free();
-    if (!x.value) {
-      return *this;
-    }
     switch (x.type) {
       case BIGINT:
         constructFrom(x.as<BigInt>(), x.type);
@@ -68,6 +67,9 @@ class AnyValue {
         break;
       case STR:
         constructFrom(x.as<std::string>(), x.type);
+        break;
+      case NONETYPE:
+        type = NONETYPE;
         break;
       default:
         throw Exception(TypeError, "unknown type!");
@@ -167,6 +169,7 @@ class AnyValue {
     }
   }
   std::string toString() const {
+    if (!value) return "None";
     switch (type) {
       case BIGINT:
         return std::string(as<BigInt>());
@@ -183,6 +186,12 @@ class AnyValue {
         throw Exception(TypeError, "unknown type!");
     }
   }
+  bool isNone() { return type == NONETYPE; }
+  // None is regarded as a value
+  bool isValue() { return type != BREAK && type != CONTINUE; }
+  bool isBREAK() { return type == BREAK; }
+  bool isCONTINUE() { return type == CONTINUE; }
+  bool isFalse() { return type == BOOL && as<bool>() == false; }
   friend std::ostream& operator<<(std::ostream& os, const AnyValue& x) {
     os << x.toString();
     return os;
@@ -221,20 +230,16 @@ class AnyValue {
   explicit operator double() const { return as<double>(); }
   explicit operator std::string() const { return as<std::string>(); }
   friend AnyValue operator+(const AnyValue& a, const AnyValue& b) {
-    AnyValue ans;
     if (a.type == STR && b.type == STR) {
-      ans.type = STR;
-      return ans.setValue(a.as<std::string>() + b.as<std::string>());
+      return AnyValue(a.as<std::string>() + b.as<std::string>());
     }
     if (a.type == STR) throw Exception(TypeError, "can only concatenate str (not \"" + typeName(b.type) + "\") to str");
     if (b.type == STR) throw Exception(TypeError, "can only concatenate str (not \"" + typeName(a.type) + "\") to str");
     if (a.type == FLOAT || b.type == FLOAT) {
-      ans.type = FLOAT;
-      return ans.setValue(a.toDouble() + b.toDouble());
+      return AnyValue(a.toDouble() + b.toDouble());
     }
     // then the type will only be BIGINT or BOOL, convert to BigInt
-    ans.type = BIGINT;
-    return ans.setValue(a.toBigInt() + b.toBigInt());
+    return AnyValue(a.toBigInt() + b.toBigInt());
   }
 
   friend AnyValue operator-(const AnyValue& a, const AnyValue& b) {
@@ -242,41 +247,33 @@ class AnyValue {
       throw Exception(TypeError,
                       "unsupported operand type(s) for -: '" + typeName(a.type) + "' and '" + typeName(b.type) + "'");
     }
-    AnyValue ans;
     if (a.type == FLOAT || b.type == FLOAT) {
-      ans.type = FLOAT;
-      return ans.setValue(a.toDouble() - b.toDouble());
+      return AnyValue(a.toDouble() - b.toDouble());
     }
     // then the type will only be BIGINT or BOOL, convert to BigInt
-    ans.type = BIGINT;
-    return ans.setValue(a.toBigInt() - b.toBigInt());
+    return AnyValue(a.toBigInt() - b.toBigInt());
   }
 
   friend AnyValue operator*(const AnyValue& a, const AnyValue& b) {
-    AnyValue ans;
     if (a.type == STR) {
       if (b.type == BIGINT) {
-        ans.type = STR;
-        ans.setValue(repeatString(a.as<std::string>(), b.as<BigInt>()));
+        return AnyValue(repeatString(a.as<std::string>(), b.as<BigInt>()));
       } else {
         throw(TypeError, "can't multiply sequence by non-int of type 'str'");
       }
     }
     if (b.type == STR) {
       if (a.type == BIGINT) {
-        ans.type = STR;
-        ans.setValue(repeatString(b.as<std::string>(), a.as<BigInt>()));
+        return AnyValue(repeatString(b.as<std::string>(), a.as<BigInt>()));
       } else {
         throw(TypeError, "can't multiply sequence by non-int of type 'str'");
       }
     }
     if (a.type == FLOAT || b.type == FLOAT) {
-      ans.type = FLOAT;
-      return ans.setValue(a.toDouble() * b.toDouble());
+      return AnyValue(a.toDouble() * b.toDouble());
     }
     // then the type will only be BIGINT or BOOL, convert to BigInt
-    ans.type = BIGINT;
-    return ans.setValue(a.toBigInt() * b.toBigInt());
+    return AnyValue(a.toBigInt() * b.toBigInt());
   }
 
   friend AnyValue operator/(const AnyValue& a, const AnyValue& b) {
@@ -284,10 +281,8 @@ class AnyValue {
       throw Exception(TypeError,
                       "unsupported operand type(s) for /: '" + typeName(a.type) + "' and '" + typeName(b.type) + "'");
     }
-    AnyValue ans;
     // convert all the types to FLOAT
-    ans.type = FLOAT;
-    return ans.setValue(a.toDouble() / b.toDouble());
+    return AnyValue(a.toDouble() / b.toDouble());
   }
 
   friend AnyValue intDiv(const AnyValue& a, const AnyValue& b) {
@@ -295,12 +290,10 @@ class AnyValue {
       throw Exception(TypeError,
                       "unsupported operand type(s) for //: '" + typeName(a.type) + "' and '" + typeName(b.type) + "'");
     if (a.type == FLOAT || b.type == FLOAT) throw Exception(UndefinedBehavior);
-    AnyValue ans;
-    ans.type = BIGINT;
     // BigInt x = a.toBigInt(), y = b.toBigInt();
     // BigInt div = x / y;
     // if ((y * div).abs_less_than(x)) div -= 1LL;
-    return ans.setValue(intDiv(a.toBigInt(), b.toBigInt()));
+    return AnyValue(intDiv(a.toBigInt(), b.toBigInt()));
   }
 
   friend AnyValue operator%(const AnyValue& a, const AnyValue& b) {
@@ -308,9 +301,7 @@ class AnyValue {
       throw Exception(TypeError,
                       "unsupported operand type(s) for /: '" + typeName(a.type) + "' and '" + typeName(b.type) + "'");
     if (a.type == FLOAT || b.type == FLOAT) throw Exception(UndefinedBehavior);
-    AnyValue ans;
-    ans.type = BIGINT;
-    return ans.setValue(a.toBigInt() % b.toBigInt());
+    return AnyValue(a.toBigInt() % b.toBigInt());
   }
   AnyValue& operator+=(const AnyValue& x) { return *this = *this + x; }
   AnyValue& operator-=(const AnyValue& x) { return *this = *this - x; }
@@ -331,6 +322,66 @@ class AnyValue {
         throw Exception(TypeError, "unknown type!");
     }
   }
+  friend bool operator>(const AnyValue& a, const AnyValue& b) {
+    if (a.type == STR || b.type == STR) {
+      if (a.type == STR && b.type == STR) {
+        return a.toString() > b.toString();
+      } else {
+        throw Exception(TypeError, "'>' not supported between instances of '" + typeName(a.type) + "' and '" +
+                                       typeName(b.type) + "'");
+      }
+    }
+    if (a.type == FLOAT || b.type == FLOAT) {
+      return a.toDouble() > b.toDouble();
+    }
+    return a.toBigInt() > b.toBigInt();
+  }
+  friend bool operator<(const AnyValue& a, const AnyValue& b) {
+    if (a.type == STR || b.type == STR) {
+      if (a.type == STR && b.type == STR) {
+        return a.toString() < b.toString();
+      } else {
+        throw Exception(TypeError, "'<' not supported between instances of '" + typeName(a.type) + "' and '" +
+                                       typeName(b.type) + "'");
+      }
+    }
+    if (a.type == FLOAT || b.type == FLOAT) {
+      return a.toDouble() < b.toDouble();
+    }
+    return a.toBigInt() < b.toBigInt();
+  }
+  friend bool operator>=(const AnyValue& a, const AnyValue& b) {
+    if (a.type == STR || b.type == STR) {
+      if (a.type == STR && b.type == STR) {
+        return a.toString() >= b.toString();
+      } else {
+        throw Exception(TypeError, "'>=' not supported between instances of '" + typeName(a.type) + "' and '" +
+                                       typeName(b.type) + "'");
+      }
+    }
+    return !(a < b);
+  }
+  friend bool operator<=(const AnyValue& a, const AnyValue& b) {
+    if (a.type == STR || b.type == STR) {
+      if (a.type == STR && b.type == STR) {
+        return a.toString() <= b.toString();
+      } else {
+        throw Exception(TypeError, "'<=' not supported between instances of '" + typeName(a.type) + "' and '" +
+                                       typeName(b.type) + "'");
+      }
+    }
+    return !(a > b);
+  }
+  friend bool operator==(const AnyValue& a, const AnyValue& b) {
+    if (a.type == STR || b.type == STR) {
+      if (a.type == STR && b.type == STR)
+        return a.toString() == b.toString();
+      else
+        return false;
+    }
+    return (!(a > b)) && (!(a < b));
+  }
+  friend bool operator!=(const AnyValue& a, const AnyValue& b) { return !(a == b); }
 };
 class AnyValueList {
   std::vector<AnyValue> list;
@@ -347,11 +398,3 @@ class AnyValueList {
   auto end() { return list.end(); }
   auto size() { return list.size(); }
 };
-// class Func {
-//  public:
-//   Python3Parser::ParametersContext* para;
-//   Python3Parser::SuiteContext* suite;
-//   // std::unordered_map<Python3Parser::ParametersContext*, std::vector<Base> >
-//   //     defaultArguments;
-//   // TODO: 执行函数
-// };

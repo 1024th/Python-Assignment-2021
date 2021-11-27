@@ -2,8 +2,13 @@ cmake_minimum_required(VERSION 3.10.2)
 project(python_interpreter)
 set(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}   -Ofast")
-#set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
-#set (CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+
+IF (CMAKE_BUILD_TYPE STREQUAL Debug)
+    ADD_DEFINITIONS(-DDEBUG)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+    set(CMAKE_LINKER_FLAGS_DEBUG "${CMAKE_LINKER_FLAGS_DEBUG} -fno-omit-frame-pointer -fsanitize=address")
+ENDIF()
+
 
 include_directories(
         ${PROJECT_SOURCE_DIR}/generated/

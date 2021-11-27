@@ -10,3 +10,7 @@ code
 libantlr4-cpp-runtime.a
 localtest/temp
 localtest/code
+test/
+.vscode/
+generated/.antlr/
+localtest/
