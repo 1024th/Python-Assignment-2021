@@ -441,19 +441,24 @@ class EvalVisitor : public Python3BaseVisitor {
       // arguments -> parameters
       auto &paras = func.paras;
       auto paraNum = paras.size();
-      for (std::size_t i = 0; i < argNum; ++i) {
+      std::size_t i;
+      for (i = 0; i < argNum; ++i) {  // Positional argument
         auto tests = args[i]->test();
         if (tests.size() == 1) {
           std::string paraName = paras[i].name;
           // scope.varRegister(paraName, visitTest(tests[0]).as<AnyValue>());
           funcScope.varRegister(paraName, visitTest(tests[0]));
         } else {
-          std::string paraName = tests[0]->getText();
-          // scope.varRegister(paraName, visitTest(tests[1]).as<AnyValue>());
-          funcScope.varRegister(paraName, visitTest(tests[1]));
+          break;
         }
       }
-      for (std::size_t i = 0; i < paraNum; ++i) {
+      for (std::size_t j = i; j < argNum; ++j) {  // Keyword argument
+        auto tests = args[j]->test();
+        std::string paraName = tests[0]->getText();
+        // scope.varRegister(paraName, visitTest(tests[1]).as<AnyValue>());
+        funcScope.varRegister(paraName, visitTest(tests[1]));
+      }
+      for (; i < paraNum; ++i) {
         if (funcScope.hasVar(paras[i].name)) continue;
         funcScope.varRegister(paras[i].name, visitTest(paras[i].defaultVal));
       }
