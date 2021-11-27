@@ -203,21 +203,22 @@ class EvalVisitor : public Python3BaseVisitor {
     auto tests = ctx->test();
     auto testNum = tests.size();
     auto suites = ctx->suite();
-    auto suiteNum = suites.size();
     // go through if and elif(s)
     for (std::size_t i = 0; i < testNum; ++i) {
       if (visitTest(tests[i]).as<AnyValue>().toBool()) {
-        auto result = visitSuite(suites[i]);
-        if (result.is<AnyValue>()) {
-          // auto resultVal = result.as<AnyValue>();
-          // if (resultVal.isValue()) return resultVal;
-          return result;  // RETURN, BREAK, CONTINUE
-        } else {
-          return 0;
-        }
+        return visitSuite(suites[i]);
+        // auto result = visitSuite(suites[i]);
+        // if (result.is<AnyValue>()) {
+        //   // auto resultVal = result.as<AnyValue>();
+        //   // if (resultVal.isValue()) return resultVal;
+        //   return result;  // RETURN, BREAK, CONTINUE
+        // } else {
+        //   return 0;
+        // }
       }
     }
     // go into else (if exists)
+    auto suiteNum = suites.size();
     if (suiteNum > testNum) {
       return visitSuite(suites.back());
     }
@@ -243,7 +244,7 @@ class EvalVisitor : public Python3BaseVisitor {
           return resultVal;
         }
         if (resultVal.isBREAK()) break;
-        if (resultVal.isCONTINUE()) continue;
+        // if (resultVal.isCONTINUE()) continue;  // unnecessary
       }
     }
     // scope.quitWhile();
@@ -264,15 +265,15 @@ class EvalVisitor : public Python3BaseVisitor {
       auto result = visitStmt(i);
       // if (result.is<AnyValueList>()) return result;  // return value of a function
       if (result.is<AnyValue>()) {
-        AnyValue resultVal = result;
+        // AnyValue resultVal = result;
         // std::cout << "(in visitSuite) returnVal is: " << resultVal << std::endl;
-        if (resultVal.isValue()) {
-          return resultVal;
-        }
+        // if (resultVal.isValue()) {
+        //   return resultVal;
+        // }
 
-        // Then resultVal will only be BREAK or CONTINUE.
-        // Both will stop current suite. So return it directly.
-        return resultVal;
+        // BREAK, CONTINUE or RETURN
+        // All will stop current suite. So return it directly.
+        return result;
       }
     }
     return 0;
@@ -284,10 +285,8 @@ class EvalVisitor : public Python3BaseVisitor {
   virtual antlrcpp::Any visitOr_test(Python3Parser::Or_testContext *ctx) override {
     auto and_tests = ctx->and_test();
     if (and_tests.size() > 1) {
-      bool ans = false;
       for (auto i : and_tests) {
-        ans = ans || visitAnd_test(i).as<AnyValue>().toBool();
-        if (ans) return AnyValue(true);
+        if (visitAnd_test(i).as<AnyValue>().toBool()) return AnyValue(true);
       }
       return AnyValue(false);
     } else {
@@ -298,10 +297,8 @@ class EvalVisitor : public Python3BaseVisitor {
   virtual antlrcpp::Any visitAnd_test(Python3Parser::And_testContext *ctx) override {
     auto not_tests = ctx->not_test();
     if (not_tests.size() > 1) {
-      bool ans = true;
       for (auto i : not_tests) {
-        ans = visitNot_test(i).as<AnyValue>().toBool();
-        if (!ans) return AnyValue(false);
+        if (!visitNot_test(i).as<AnyValue>().toBool()) return AnyValue(false);
       }
       return AnyValue(true);
     } else {
