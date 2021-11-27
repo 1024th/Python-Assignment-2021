@@ -482,7 +482,11 @@ class EvalVisitor : public Python3BaseVisitor {
       else
         throw Exception(NameError, varName);
     } else if (ctx->NUMBER()) {
-      return AnyValue(BigInt(ctxText));
+      if(ctxText.find(".") == std::string::npos)
+        return AnyValue(BigInt(ctxText));
+      else{
+        return AnyValue(std::stod(ctxText));
+      }
     } else if (ctxText == "None") {
       return AnyValue();
     } else if (ctxText == "True") {
@@ -520,4 +524,4 @@ class EvalVisitor : public Python3BaseVisitor {
   virtual antlrcpp::Any visitArgument(Python3Parser::ArgumentContext *ctx) override { return visitChildren(ctx); }
 };
 
-#endif  // PYTHON_INTERPRETER
+#endif  // PYTHON_INT
