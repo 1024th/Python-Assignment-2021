@@ -22,6 +22,8 @@ class AnyValue {
         return "float";
       case STR:
         return "str";
+      case NONETYPE:
+        return "None";
       default:
         throw Exception(TypeError, "unknown type!");
         break;
@@ -52,6 +54,14 @@ class AnyValue {
   // Only for AnyValue(BREAK) and AnyValue(CONTINUE)
   AnyValue(ValueType t) : type(t), value(nullptr) {}
   AnyValue(const AnyValue& x) { *this = x; }
+  AnyValue(AnyValue&& x) {
+    // if (this == &x) return *this;
+    free();
+    type = x.type;
+    value = x.value;
+    x.type = NONETYPE;
+    x.value = nullptr;
+  }
   AnyValue& operator=(const AnyValue& x) {
     if (this == &x) return *this;
     free();
@@ -75,6 +85,16 @@ class AnyValue {
         throw Exception(TypeError, "unknown type!");
         break;
     }
+    return *this;
+  }
+
+  AnyValue& operator=(AnyValue&& x) {
+    if (this == &x) return *this;
+    free();
+    type = x.type;
+    value = x.value;
+    x.type = NONETYPE;
+    x.value = nullptr;
     return *this;
   }
   AnyValue(BigInt x) { constructFrom<BigInt>(x, BIGINT); }

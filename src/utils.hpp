@@ -393,7 +393,7 @@ class BigInt {
     return oss.str();
   }
   explicit operator double() const { return std::stod(std::string(*this)); }
-  explicit operator bool() const { return (*this) == BigInt(); }
+  explicit operator bool() const { return (*this) != BigInt(); }
 
   inline friend bool operator==(const BigInt &a, const BigInt &b) {
     if (a.positive != b.positive) return false;
