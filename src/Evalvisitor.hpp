@@ -100,7 +100,8 @@ class EvalVisitor : public Python3BaseVisitor {
     int len = testlists.size();
     if (ctx->augassign()) {
       std::string varName = testlists[0]->getText();
-      auto op = ctx->augassign()->getText();
+      // auto op = ctx->augassign()->getText();
+      auto augassign = ctx->augassign();
       // std::string varName2 = testlists[1]->getText();
       // auto [success, value] = scope.varQuery(varName);
       auto& value = scope.varQuery(varName);
@@ -110,24 +111,30 @@ class EvalVisitor : public Python3BaseVisitor {
       AnyValue value2 = visitTest(testlists[1]->test()[0]).as<AnyValue>();
       // if (success && success2) {
       // if (success) {
-      if (op == "+=")
+      // if (op == "+=")
+      if (augassign->ADD_ASSIGN())
         // scope.varRegister(varName, value + value2);
-        value = value + value2;
-      else if (op == "-=")
+        value += value2;
+      // else if (op == "-=")
+      else if(augassign->SUB_ASSIGN())
         // scope.varRegister(varName, value - value2);
-        value = value - value2;
-      else if (op == "*=")
+        value -= value2;
+      // else if (op == "*=")
+      else if (augassign->MULT_ASSIGN())
         // scope.varRegister(varName, value * value2);
-        value = value * value2;
-      else if (op == "/=")
+        value *= value2;
+      // else if (op == "/=")
+      else if (augassign->DIV_ASSIGN())
         // scope.varRegister(varName, value / value2);
-        value = value / value2;
-      else if (op == "//=")
+        value /= value2;
+      // else if (op == "//=")
+      else if (augassign->IDIV_ASSIGN())
         // scope.varRegister(varName, intDiv(value, value2));
         value = intDiv(value, value2);
-      else if (op == "%=")
+      // else if (op == "%=")
+      else if (augassign->MOD_ASSIGN())
         // scope.varRegister(varName, value % value2);
-        value = value % value2;
+        value %= value2;
       // }
       return 0;
     }
@@ -368,12 +375,12 @@ class EvalVisitor : public Python3BaseVisitor {
     // std::cout << "ans: " << ans << std::endl;
 
     for (int i = 1; i < terms.size(); ++i) {
-      std::string op = ops[i - 1]->getText();
+      // std::string op = ops[i - 1] ->getText();
       AnyValue term2 = visitTerm(terms[i]);
       // std::cout << "term2: " << term2 << std::endl;
-      if (op == "+")
+      if (ops[i-1]->ADD())
         ans += term2;
-      else if (op == "-")
+      else /*if (op == "-")*/
         ans -= term2;
     }
     // std::cout << "return ans: " << ans << std::endl;
@@ -390,14 +397,18 @@ class EvalVisitor : public Python3BaseVisitor {
     AnyValue ans = visitFactor(factors[0]);
 
     for (int i = 1; i < factors.size(); ++i) {
-      std::string op = ops[i - 1]->getText();
-      if (op == "*")
+      // std::string op = ops[i - 1]->getText();
+      // if (op == "*")
+      if (ops[i-1]->STAR())
         ans *= visitFactor(factors[i]);
-      else if (op == "/")
+      // else if (op == "/")
+      else if (ops[i-1]->DIV())
         ans /= visitFactor(factors[i]);
-      else if (op == "//")
+      // else if (op == "//")
+      else if (ops[i-1]->IDIV())
         ans = intDiv(ans, visitFactor(factors[i]));
-      else if (op == "%")
+      // else if (op == "%")
+      else if (ops[i-1]->MOD())
         ans %= visitFactor(factors[i]);
     }
     return ans;
@@ -515,25 +526,26 @@ class EvalVisitor : public Python3BaseVisitor {
       return visitTest(ctx->test());
     }
 
-    std::string ctxText = ctx->getText();
+    // std::string ctxText = ctx->getText();
     if (ctx->NAME()) {
-      return scope.varQuery(ctxText);
+      return scope.varQuery(ctx->getText());
       // auto [success, value] = scope.varQuery(ctxText);
       // if (success)
       //   return value;
       // else
       //   throw Exception(NameError, ctxText);
     } else if (ctx->NUMBER()) {
+      std::string ctxText = ctx->getText();
       if (ctxText.find(".") == std::string::npos)
         return AnyValue(BigInt(ctxText));
       else {
         return AnyValue(std::stod(ctxText));
       }
-    } else if (ctxText == "None") {
+    } else if (ctx->NONE()) {
       return None;
-    } else if (ctxText == "True") {
+    } else if (ctx->TRUE()) {
       return True;
-    } else if (ctxText == "False") {
+    } else if (ctx->FALSE()) {
       return False;
     }
     auto strings = ctx->STRING();
