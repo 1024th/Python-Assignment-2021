@@ -42,7 +42,9 @@ class EvalVisitor : public Python3BaseVisitor {
     //   std::cout << "visitStmt's returnVal is not AnyValue" << std::endl;
     // }
     // return result;
-    return visitChildren(ctx);
+    if (ctx->simple_stmt()) return visitSimple_stmt(ctx->simple_stmt());
+    return visitCompound_stmt(ctx->compound_stmt());
+    // return visitChildren(ctx);
   }
 
   virtual antlrcpp::Any visitSimple_stmt(Python3Parser::Simple_stmtContext *ctx) override {
@@ -88,18 +90,18 @@ class EvalVisitor : public Python3BaseVisitor {
       AnyValue value2 = visitTest(testlists[1]->test()[0]).as<AnyValue>();
       // if (success && success2) {
       // if (success) {
-        if (op == "+=")
-          scope.varRegister(varName, value + value2);
-        else if (op == "-=")
-          scope.varRegister(varName, value - value2);
-        else if (op == "*=")
-          scope.varRegister(varName, value * value2);
-        else if (op == "/=")
-          scope.varRegister(varName, value / value2);
-        else if (op == "//=")
-          scope.varRegister(varName, intDiv(value, value2));
-        else if (op == "%=")
-          scope.varRegister(varName, value % value2);
+      if (op == "+=")
+        scope.varRegister(varName, value + value2);
+      else if (op == "-=")
+        scope.varRegister(varName, value - value2);
+      else if (op == "*=")
+        scope.varRegister(varName, value * value2);
+      else if (op == "/=")
+        scope.varRegister(varName, value / value2);
+      else if (op == "//=")
+        scope.varRegister(varName, intDiv(value, value2));
+      else if (op == "%=")
+        scope.varRegister(varName, value % value2);
       // }
       return 0;
     }
@@ -107,7 +109,7 @@ class EvalVisitor : public Python3BaseVisitor {
     if (len == 1) {
       // TODO: check
       // No need to 实现 多返回值
-      AnyValue returnVal = visitTestlist(testlists[0]).as<AnyValueList>()[0];
+      visitTestlist(testlists[0]);
       // std::cout << "visitExpr_stmt returns: " << returnVal << std::endl;
       return 0;  // TODO: check
     } else if (len >= 2) {
@@ -139,11 +141,12 @@ class EvalVisitor : public Python3BaseVisitor {
 
   virtual antlrcpp::Any visitFlow_stmt(Python3Parser::Flow_stmtContext *ctx) override {
     if (ctx->return_stmt()) {
+      return visitReturn_stmt(ctx->return_stmt());
       // return visitTestlist(ctx->return_stmt()->testlist()).as<AnyValueList>()[0];
-      auto testlist = ctx->return_stmt()->testlist();
-      if (testlist) return visitTest(testlist->test()[0]);
+      // auto testlist = ctx->return_stmt()->testlist();
+      // if (testlist) return visitTest(testlist->test()[0]);
       // std::cout << "(in visitFlow_stmt) returnVal is: " << returnVal << std::endl;
-      return None;  // None
+      // return None;  // None
     }
     if (ctx->break_stmt()) return AnyValue(BREAK);
     if (ctx->continue_stmt()) return AnyValue(CONTINUE);
@@ -171,7 +174,11 @@ class EvalVisitor : public Python3BaseVisitor {
     return AnyValue(CONTINUE);
   }
 
-  virtual antlrcpp::Any visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) override { return visitChildren(ctx); }
+  virtual antlrcpp::Any visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) override {
+    auto testlist = ctx->testlist();
+    if (testlist) return visitTest(testlist->test()[0]);
+    return None;
+  }
 
   virtual antlrcpp::Any visitCompound_stmt(Python3Parser::Compound_stmtContext *ctx) override {
     return visitChildren(ctx);
@@ -233,7 +240,7 @@ class EvalVisitor : public Python3BaseVisitor {
     // std::cout << "visitSuite" << std::endl;
     if (ctx->simple_stmt()) {
       // std::cout << "simpe stmt: " << ctx->simple_stmt()->getText() << std::endl;
-      return visitChildren(ctx);
+      return visitSimple_stmt(ctx->simple_stmt());
     }
     auto stmts = ctx->stmt();
     // TODO
@@ -257,7 +264,7 @@ class EvalVisitor : public Python3BaseVisitor {
     // return visitChildren(ctx);
   }
 
-  virtual antlrcpp::Any visitTest(Python3Parser::TestContext *ctx) override { return visitChildren(ctx); }
+  virtual antlrcpp::Any visitTest(Python3Parser::TestContext *ctx) override { return visitOr_test(ctx->or_test()); }
 
   virtual antlrcpp::Any visitOr_test(Python3Parser::Or_testContext *ctx) override {
     auto and_tests = ctx->and_test();
@@ -269,7 +276,7 @@ class EvalVisitor : public Python3BaseVisitor {
       }
       return AnyValue(false);
     } else {
-      return visitChildren(ctx);
+      return visitAnd_test(and_tests[0]);
     }
   }
 
@@ -283,21 +290,21 @@ class EvalVisitor : public Python3BaseVisitor {
       }
       return AnyValue(true);
     } else {
-      return visitChildren(ctx);
+      return visitNot_test(not_tests[0]);
     }
   }
   virtual antlrcpp::Any visitNot_test(Python3Parser::Not_testContext *ctx) override {
     if (ctx->not_test())
-      return AnyValue(!visitChildren(ctx).as<AnyValue>().toBool());
+      return AnyValue(!visitNot_test(ctx->not_test()).as<AnyValue>().toBool());
     else
-      return visitChildren(ctx);
+      return visitComparison(ctx->comparison());
   }
 
   virtual antlrcpp::Any visitComparison(Python3Parser::ComparisonContext *ctx) override {
     auto arith_exprs = ctx->arith_expr();
     auto ops = ctx->comp_op();
     if (ops.empty()) {
-      return visitChildren(ctx);
+      return visitArith_expr(arith_exprs[0]);
     }
     std::vector<AnyValue> vals;
     vals.push_back(visitArith_expr(arith_exprs[0]));
@@ -454,18 +461,18 @@ class EvalVisitor : public Python3BaseVisitor {
       scope.enterFunc(funcScope);  // directly enter this scope before processing arguments will cause error
       // auto result = visitSuite(func.suite).as<AnyValueList>();
       auto result = visitSuite(func.suite);
-      AnyValue returnVal;
-      if (result.is<AnyValue>()) {
-        returnVal = result;
-      } else {
-        returnVal = None;  // None
-      }
+      // AnyValue returnVal;
+      // if (result.is<AnyValue>()) {
+      //   returnVal = result;
+      // }
       scope.quitFunc();
+      if (result.is<AnyValue>()) return result;
+      return None;
       // return result[0];
 #ifdef DEBUG
       std::cout << "Function " << funcName << " returns: " << returnVal << std::endl;
 #endif  // DEBUG
-      return returnVal;
+      // return returnVal;
       // if (result.size() == 1) return result[0];
       // return result;
     } else {
@@ -476,10 +483,12 @@ class EvalVisitor : public Python3BaseVisitor {
   virtual antlrcpp::Any visitTrailer(Python3Parser::TrailerContext *ctx) override { return visitChildren(ctx); }
 
   virtual antlrcpp::Any visitAtom(Python3Parser::AtomContext *ctx) override {
-    std::string ctxText = ctx->getText();
     if (ctx->test()) {
       return visitTest(ctx->test());
-    } else if (ctx->NAME()) {
+    }
+
+    std::string ctxText = ctx->getText();
+    if (ctx->NAME()) {
       return scope.varQuery(ctxText);
       // auto [success, value] = scope.varQuery(ctxText);
       // if (success)
@@ -505,7 +514,8 @@ class EvalVisitor : public Python3BaseVisitor {
       for (auto i : strings) {
         std::string s(i->getText());
         auto len = s.size();
-        if (s.substr(0, 3) == "\"\"\"" || s.substr(0, 3) == "'''") {
+        auto front = s.substr(0, 3);
+        if (front == "\"\"\"" || front == "'''") {
           ans += s.substr(3, len - 6);
         } else {
           ans += s.substr(1, len - 2);

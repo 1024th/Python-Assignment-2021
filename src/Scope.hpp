@@ -65,7 +65,6 @@ class Scope {
 
  private:
   std::unordered_map<std::string, AnyValue> varTable;
-  std::unordered_map<std::string, Func> funcTable;  // TODO
 
  public:
   //  std::string name;
@@ -73,11 +72,18 @@ class Scope {
   AnyValue& operator[](const std::string& s) { return varTable[s]; }
   void varRegister(const std::string& varName, const AnyValue& varData) { varTable[varName] = varData; }
 
-  std::pair<bool, AnyValue> varQuery(const std::string& varName) const {
-    auto it = varTable.find(varName);
-    if (it == varTable.end()) return std::make_pair(false, AnyValue());
-    return std::make_pair(true, it->second);
-  }
+  // std::pair<bool, AnyValue> varQuery(const std::string& varName) const {
+  //   auto it = varTable.find(varName);
+  //   if (it == varTable.end()) return std::make_pair(false, AnyValue());
+  //   return std::make_pair(true, it->second);
+  // }
+  bool hasVar(const std::string& varName) const { return varTable.count(varName); }
+};
+
+class GlobalScope : Scope {
+  friend ScopeStack;
+  std::unordered_map<std::string, Func> funcTable;  // TODO
+ public:
   void funcRegister(Python3Parser::FuncdefContext* ctx) {
     std::string funcName = ctx->NAME()->getText();
 #ifdef DEBUG
@@ -96,31 +102,34 @@ class Scope {
     }
     return it->second;
   }
-  bool hasVar(const std::string& varName) const { return varTable.count(varName); }
 };
 
 // enum Status { GLOBAL, WHILE, FUNCTION };
 
 class ScopeStack {
+  GlobalScope global;
   std::vector<Scope> scopes;
   // std::vector<Status> status;
 
  public:
   ScopeStack() {
-    scopes.push_back(Scope());
+    // scopes.push_back(Scope());
     // status.push_back(GLOBAL);
   }
 
   void varRegister(const std::string& varName, const AnyValue& varData) {
     // std::cout << "varName: " << varName << " varData: " << varData << std::endl;
-    if (scopes.size() > 1) {
-      if (scopes.back().hasVar(varName)) {  // in current scope
-        scopes.back().varRegister(varName, varData);
-        return;
-      }
+    if (scopes.empty()) {
+      global.varRegister(varName, varData);
+      return;
     }
-    if (scopes.front().hasVar(varName)) {  // in global scope
-      scopes.front().varRegister(varName, varData);
+
+    if (scopes.back().hasVar(varName)) {  // in current scope
+      scopes.back().varRegister(varName, varData);
+      return;
+    }
+    if (global.hasVar(varName)) {  // in global scope
+      global.varRegister(varName, varData);
       return;
     }
     scopes.back().varRegister(varName, varData);  // create
@@ -129,14 +138,14 @@ class ScopeStack {
   AnyValue varQuery(const std::string& varName) {
     // auto result = scopes.back().varQuery(varName);
 
-    if (scopes.size() > 1) {
+    if (!scopes.empty()) {
       auto it = scopes.back().varTable.find(varName);
       if (it != scopes.back().varTable.end()) {
         return it->second;
       }
     }
-    auto it = scopes.front().varTable.find(varName);
-    if (it != scopes.front().varTable.end()) {
+    auto it = global.varTable.find(varName);
+    if (it != global.varTable.end()) {
       return it->second;
     }
 
@@ -164,14 +173,14 @@ class ScopeStack {
     throw Exception(NameError, varName);
     return AnyValue();
   }
-  void funcRegister(Python3Parser::FuncdefContext* ctx) { scopes.front().funcRegister(ctx); }
+  void funcRegister(Python3Parser::FuncdefContext* ctx) { global.funcRegister(ctx); }
   Func funcQuery(const std::string& funcName) const {
     // for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
     //   auto [success, val] = it->funcQuery(funcName);
     //   if (success) return std::make_pair(true, val);
     // }
     // return std::make_pair(false, nullptr);
-    return scopes.front().funcQuery(funcName);
+    return global.funcQuery(funcName);
   }
   // void enterWhile() { status.push_back(WHILE); }
   // void quitWhile() {
@@ -179,7 +188,7 @@ class ScopeStack {
   //     status.pop_back();
   //   } else {
   //     throw "Error: Current Status is not WHILE";
-  //   }
+  //   }varRegister
   // }
   void enterFunc(const Scope& scope) {
     // std::cout << "enterFunc" << std::endl;
