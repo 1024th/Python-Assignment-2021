@@ -11,7 +11,7 @@
 #include "utils.hpp"
 
 ScopeStack scope;
-const AnyValue True(true), False(false), None;
+// const AnyValue True(true), False(false), None;
 
 class EvalVisitor : public Python3BaseVisitor {
   // todo:override all methods of Python3BaseVisitor
@@ -77,7 +77,12 @@ class EvalVisitor : public Python3BaseVisitor {
   }
 
   virtual antlrcpp::Any visitSmall_stmt(Python3Parser::Small_stmtContext *ctx) override {
-    return visitChildren(ctx);
+    if (ctx->expr_stmt()) {
+      return visitExpr_stmt(ctx->expr_stmt());
+    }
+    return visitFlow_stmt(ctx->flow_stmt());
+    // return visitChildren(ctx);
+
     // std::cout << "in visitSmall_stmt: ";
     // return
     // auto result = visitChildren(ctx);
@@ -95,10 +100,10 @@ class EvalVisitor : public Python3BaseVisitor {
     int len = testlists.size();
     if (ctx->augassign()) {
       std::string varName = testlists[0]->getText();
-      std::string op = ctx->augassign()->getText();
+      auto op = ctx->augassign()->getText();
       // std::string varName2 = testlists[1]->getText();
       // auto [success, value] = scope.varQuery(varName);
-      auto value = scope.varQuery(varName);
+      auto& value = scope.varQuery(varName);
 
       // auto [success2, value2] = scope.varQuery(varName2);
       // AnyValue value2 = visitTestlist(testlists[1]).as<AnyValueList>()[0];
@@ -106,17 +111,23 @@ class EvalVisitor : public Python3BaseVisitor {
       // if (success && success2) {
       // if (success) {
       if (op == "+=")
-        scope.varRegister(varName, value + value2);
+        // scope.varRegister(varName, value + value2);
+        value = value + value2;
       else if (op == "-=")
-        scope.varRegister(varName, value - value2);
+        // scope.varRegister(varName, value - value2);
+        value = value - value2;
       else if (op == "*=")
-        scope.varRegister(varName, value * value2);
+        // scope.varRegister(varName, value * value2);
+        value = value * value2;
       else if (op == "/=")
-        scope.varRegister(varName, value / value2);
+        // scope.varRegister(varName, value / value2);
+        value = value / value2;
       else if (op == "//=")
-        scope.varRegister(varName, intDiv(value, value2));
+        // scope.varRegister(varName, intDiv(value, value2));
+        value = intDiv(value, value2);
       else if (op == "%=")
-        scope.varRegister(varName, value % value2);
+        // scope.varRegister(varName, value % value2);
+        value = value % value2;
       // }
       return 0;
     }
@@ -239,11 +250,11 @@ class EvalVisitor : public Python3BaseVisitor {
       // }
       if (result.is<AnyValue>()) {
         AnyValue resultVal = result;
+        if (resultVal.isBREAK()) break;
         if (resultVal.isValue()) {
           // scope.quitWhile();
-          return resultVal;
+          return result;
         }
-        if (resultVal.isBREAK()) break;
         // if (resultVal.isCONTINUE()) continue;  // unnecessary
       }
     }

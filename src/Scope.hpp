@@ -136,7 +136,7 @@ class ScopeStack {
     scopes.back().varRegister(varName, varData);  // create
   }
 
-  AnyValue varQuery(const std::string& varName) {
+  AnyValue& varQuery(const std::string& varName) {
     // auto result = scopes.back().varQuery(varName);
 
     if (!scopes.empty()) {
@@ -172,7 +172,7 @@ class ScopeStack {
     // }
 
     throw Exception(NameError, varName);
-    return AnyValue();
+    return None;
   }
   void funcRegister(const std::string funcName, const Func& fun) { global.funcRegister(funcName, fun); }
   Func funcQuery(const std::string& funcName) const {

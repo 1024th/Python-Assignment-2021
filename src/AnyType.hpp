@@ -426,3 +426,6 @@ class AnyValueList {
   auto end() { return list.end(); }
   auto size() { return list.size(); }
 };
+
+
+AnyValue True(true), False(false), None;
