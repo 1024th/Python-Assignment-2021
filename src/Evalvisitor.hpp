@@ -19,7 +19,22 @@ class EvalVisitor : public Python3BaseVisitor {
   virtual antlrcpp::Any visitFile_input(Python3Parser::File_inputContext *ctx) override { return visitChildren(ctx); }
 
   virtual antlrcpp::Any visitFuncdef(Python3Parser::FuncdefContext *ctx) override {
-    scope.funcRegister(ctx);
+    // scope.funcRegister(ctx);
+    Func fun;
+    fun.suite = ctx->suite();
+    auto args = ctx->parameters()->typedargslist();
+    if (args) {
+      auto paraNames = args->tfpdef();
+      auto tests = args->test();
+      auto paraNum = paraNames.size();
+      auto testNum = tests.size();
+      auto shift = paraNum - testNum;
+      for (std::size_t i = 0; i < paraNum; ++i) {
+        fun.paras.push_back(
+            Func::Para(paraNames[i]->getText(), i >= shift ? visitTest(tests[i - shift]).as<AnyValue>() : None));
+      }
+    }
+    scope.funcRegister(ctx->NAME()->getText(), fun);
     return 0;
     // return visitChildren(ctx);
   }
@@ -460,7 +475,7 @@ class EvalVisitor : public Python3BaseVisitor {
       }
       for (; i < paraNum; ++i) {
         if (funcScope.hasVar(paras[i].name)) continue;
-        funcScope.varRegister(paras[i].name, visitTest(paras[i].defaultVal));
+        funcScope.varRegister(paras[i].name, paras[i].defaultVal);
       }
       // call the function
       scope.enterFunc(funcScope);  // directly enter this scope before processing arguments will cause error

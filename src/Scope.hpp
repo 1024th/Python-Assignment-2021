@@ -9,54 +9,54 @@
 #include "Python3BaseVisitor.h"
 
 class Func {
+ public:
   struct Para {
     std::string name;
-    Python3Parser::TestContext* defaultVal;
-    Para(std::string name_, Python3Parser::TestContext* test) : name(name_), defaultVal(test) {}
+    AnyValue defaultVal;
+    // Python3Parser::TestContext* defaultVal;
+    Para(std::string name_, AnyValue defaultVal_) : name(name_), defaultVal(defaultVal_) {}
   };
-
- public:
-  Python3Parser::FuncdefContext* ctx;
+  // Python3Parser::FuncdefContext* ctx;
   // Python3Parser::ParametersContext* para;
   std::vector<Para> paras;
   Python3Parser::SuiteContext* suite;
   //     defaultArguments;
   // TODO: 执行函数
-  Func(Python3Parser::FuncdefContext* ctx_) : ctx(ctx_) {
-#ifdef DEBUG
-    std::cout << "Now creating a function: ";
-#endif  // DEBUG
-    if (ctx == nullptr) {
-#ifdef DEBUG
-      std::cout << "function is nullptr" << std::endl;
-#endif  // DEBUG
-      return;
-    }
-    suite = ctx_->suite();
-#ifdef DEBUG
-    if (suite) {
-      std::cout << "suite is not nullptr" << std::endl;
-    }
-#endif  // DEBUG
-    auto args = ctx->parameters()->typedargslist();
-    if (args) {
-#ifdef DEBUG
-      std::cout << "has parameter" << std::endl;
-#endif  // DEBUG
-      auto paraNames = args->tfpdef();
-      auto tests = args->test();
-      auto paraNum = paraNames.size();
-      auto testNum = tests.size();
-      auto shift = paraNum - testNum;
-      for (std::size_t i = 0; i < paraNum; ++i) {
-        paras.push_back(Para(paraNames[i]->getText(), i >= shift ? tests[i - shift] : nullptr));
-      }
-    } else {
-#ifdef DEBUG
-      std::cout << "not have parameter" << std::endl;
-#endif  // DEBUG
-    }
-  }
+  //   Func(Python3Parser::FuncdefContext* ctx_) : ctx(ctx_) {
+  // #ifdef DEBUG
+  //     std::cout << "Now creating a function: ";
+  // #endif  // DEBUG
+  //     if (ctx == nullptr) {
+  // #ifdef DEBUG
+  //       std::cout << "function is nullptr" << std::endl;
+  // #endif  // DEBUG
+  //       return;
+  //     }
+  //     suite = ctx_->suite();
+  // #ifdef DEBUG
+  //     if (suite) {
+  //       std::cout << "suite is not nullptr" << std::endl;
+  //     }
+  // #endif  // DEBUG
+  //     auto args = ctx->parameters()->typedargslist();
+  //     if (args) {
+  // #ifdef DEBUG
+  //       std::cout << "has parameter" << std::endl;
+  // #endif  // DEBUG
+  //       auto paraNames = args->tfpdef();
+  //       auto tests = args->test();
+  //       auto paraNum = paraNames.size();
+  //       auto testNum = tests.size();
+  //       auto shift = paraNum - testNum;
+  //       for (std::size_t i = 0; i < paraNum; ++i) {
+  //         paras.push_back(Para(paraNames[i]->getText(), i >= shift ? tests[i - shift] : nullptr));
+  //       }
+  //     } else {
+  // #ifdef DEBUG
+  //       std::cout << "not have parameter" << std::endl;
+  // #endif  // DEBUG
+  //     }
+  //   }
 };
 
 class ScopeStack;
@@ -84,21 +84,22 @@ class GlobalScope : Scope {
   friend ScopeStack;
   std::unordered_map<std::string, Func> funcTable;  // TODO
  public:
-  void funcRegister(Python3Parser::FuncdefContext* ctx) {
-    std::string funcName = ctx->NAME()->getText();
-#ifdef DEBUG
-    std::cout << "Register function: " << funcName;
-#endif  // DEBUG
-    funcTable.emplace(funcName, Func(ctx));
-#ifdef DEBUG
-    std::cout << " succeeded" << std::endl;
-#endif  // DEBUG
+  void funcRegister(const std::string& funcName, const Func& fun) {
+    //     std::string funcName = ctx->NAME()->getText();
+    // #ifdef DEBUG
+    //     std::cout << "Register function: " << funcName;
+    // #endif  // DEBUG
+    //     funcTable.emplace(funcName, Func(ctx));
+    // #ifdef DEBUG
+    //     std::cout << " succeeded" << std::endl;
+    // #endif  // DEBUG
+    funcTable.emplace(funcName, fun);
   }
   Func funcQuery(const std::string& funcName) const {
     auto it = funcTable.find(funcName);
     if (it == funcTable.end()) {
       throw Exception(NameError, funcName);
-      return nullptr;
+      return Func();
     }
     return it->second;
   }
@@ -173,7 +174,7 @@ class ScopeStack {
     throw Exception(NameError, varName);
     return AnyValue();
   }
-  void funcRegister(Python3Parser::FuncdefContext* ctx) { global.funcRegister(ctx); }
+  void funcRegister(const std::string funcName, const Func& fun) { global.funcRegister(funcName, fun); }
   Func funcQuery(const std::string& funcName) const {
     // for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
     //   auto [success, val] = it->funcQuery(funcName);
