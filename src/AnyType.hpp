@@ -152,7 +152,7 @@ class AnyValue {
       case FLOAT:
         return bool(as<double>());
       case STR:
-        return as<std::string>() == "";
+        return as<std::string>() != "";
       default:
         throw Exception(TypeError, "unknown type!");
     }
