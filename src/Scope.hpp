@@ -20,43 +20,6 @@ class Func {
   // Python3Parser::ParametersContext* para;
   std::vector<Para> paras;
   Python3Parser::SuiteContext* suite;
-  //     defaultArguments;
-  // TODO: 执行函数
-  //   Func(Python3Parser::FuncdefContext* ctx_) : ctx(ctx_) {
-  // #ifdef DEBUG
-  //     std::cout << "Now creating a function: ";
-  // #endif  // DEBUG
-  //     if (ctx == nullptr) {
-  // #ifdef DEBUG
-  //       std::cout << "function is nullptr" << std::endl;
-  // #endif  // DEBUG
-  //       return;
-  //     }
-  //     suite = ctx_->suite();
-  // #ifdef DEBUG
-  //     if (suite) {
-  //       std::cout << "suite is not nullptr" << std::endl;
-  //     }
-  // #endif  // DEBUG
-  //     auto args = ctx->parameters()->typedargslist();
-  //     if (args) {
-  // #ifdef DEBUG
-  //       std::cout << "has parameter" << std::endl;
-  // #endif  // DEBUG
-  //       auto paraNames = args->tfpdef();
-  //       auto tests = args->test();
-  //       auto paraNum = paraNames.size();
-  //       auto testNum = tests.size();
-  //       auto shift = paraNum - testNum;
-  //       for (std::size_t i = 0; i < paraNum; ++i) {
-  //         paras.push_back(Para(paraNames[i]->getText(), i >= shift ? tests[i - shift] : nullptr));
-  //       }
-  //     } else {
-  // #ifdef DEBUG
-  //       std::cout << "not have parameter" << std::endl;
-  // #endif  // DEBUG
-  //     }
-  //   }
 };
 
 class ScopeStack;
@@ -67,7 +30,6 @@ class Scope {
   std::unordered_map<std::string, AnyValue> varTable;
 
  public:
-  //  std::string name;
   Scope() : varTable() {}
   AnyValue& operator[](const std::string& s) { return varTable[s]; }
   void varRegister(const std::string& varName, const AnyValue& varData) { varTable[varName] = varData; }
@@ -95,13 +57,13 @@ class GlobalScope : Scope {
     // #endif  // DEBUG
     funcTable.emplace(funcName, fun);
   }
-  Func funcQuery(const std::string& funcName) const {
+  Func& funcQuery(const std::string& funcName) {
     auto it = funcTable.find(funcName);
     if (it == funcTable.end()) {
       throw Exception(NameError, funcName);
-      return Func();
+      // return Func();
     }
-    return it->second;
+    return funcTable[funcName];
   }
 };
 
@@ -110,13 +72,8 @@ class GlobalScope : Scope {
 class ScopeStack {
   GlobalScope global;
   std::vector<Scope> scopes;
-  // std::vector<Status> status;
-
  public:
-  ScopeStack() {
-    // scopes.push_back(Scope());
-    // status.push_back(GLOBAL);
-  }
+  ScopeStack() {}
 
   void varRegister(const std::string& varName, const AnyValue& varData) {
     // std::cout << "varName: " << varName << " varData: " << varData << std::endl;
@@ -175,7 +132,7 @@ class ScopeStack {
     return None;
   }
   void funcRegister(const std::string funcName, const Func& fun) { global.funcRegister(funcName, fun); }
-  Func funcQuery(const std::string& funcName) const {
+  Func& funcQuery(const std::string& funcName) {
     // for (auto it = scopes.rbegin(); it != scopes.rend(); it++) {
     //   auto [success, val] = it->funcQuery(funcName);
     //   if (success) return std::make_pair(true, val);
@@ -183,30 +140,13 @@ class ScopeStack {
     // return std::make_pair(false, nullptr);
     return global.funcQuery(funcName);
   }
-  // void enterWhile() { status.push_back(WHILE); }
-  // void quitWhile() {
-  //   if (status.back() == WHILE) {
-  //     status.pop_back();
-  //   } else {
-  //     throw "Error: Current Status is not WHILE";
-  //   }varRegister
-  // }
   void enterFunc(const Scope& scope) {
     // std::cout << "enterFunc" << std::endl;
     scopes.push_back(scope);
-    // status.push_back(FUNCTION);
   }
   void quitFunc() {
-    // std::cout << "quitFunc" << std::endl;
-    // if (status.back() == FUNCTION) {
     scopes.pop_back();
-    // status.pop_back();
-    // } else {
-    // throw "Error: Current Status is not FUNCTION";
-    // }
   }
-  // bool varExistInCurrentScope(std::string varName) { return scopes.back().hasVar(varName); }
-  // Status currentStatus() { return status.back(); }
 };
 
 #endif  // APPLE_PIE_SCOPE_H
