@@ -369,11 +369,15 @@ class EvalVisitor : public Python3BaseVisitor {
       // std::cout << "funcName: " << funcName << std::endl;
       if (funcName == "print") {
         // std::cout << "try to print" << std::endl;
-        bool second = false;
+        AnyValueList visitedArgs;
         for (auto arg : args) {
+          visitedArgs.push_back(visitTest(arg->test()[0]));
+        }
+        bool second = false;
+        for (auto arg : visitedArgs) {
           if (second) std::cout << " ";
           second = true;
-          std::cout << visitTest(arg->test()[0]).as<AnyValue>();
+          std::cout << arg;
         }
         std::cout << std::endl;
         return AnyValue();
