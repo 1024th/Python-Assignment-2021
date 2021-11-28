@@ -125,7 +125,7 @@ class EvalVisitor : public Python3BaseVisitor {
   // Not used
   virtual antlrcpp::Any visitAugassign(Python3Parser::AugassignContext *ctx) override { return visitChildren(ctx); }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitFlow_stmt(Python3Parser::Flow_stmtContext *ctx) override {
     if (ctx->return_stmt()) {
       return visitReturn_stmt(ctx->return_stmt());
@@ -143,11 +143,17 @@ class EvalVisitor : public Python3BaseVisitor {
     return AnyValue(CONTINUE);
   }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitReturn_stmt(Python3Parser::Return_stmtContext *ctx) override {
     auto testlist = ctx->testlist();
-    // In this python interpreter, function won't have multiple return values
-    if (testlist) return visitTest(testlist->test()[0]);
+    if (testlist) {
+      auto result = visitTestlist(testlist);
+      if (result.is<AnyValueList>()) {
+        AnyValueList resultVal = result;
+        if (resultVal.size() == 1) return resultVal[0];
+      }
+      return result;
+    }
     return AnyValue();  // "void" function returns None
   }
 
@@ -190,7 +196,9 @@ class EvalVisitor : public Python3BaseVisitor {
     return 0;
   }
 
-  // Returns 0 when finished normally, AnyValue when encountering BREAK, CONTINUE or RETURN
+  // Returns 0 when finished normally,
+  // AnyValue when encountering BREAK or CONTINUE,
+  // AnyValue or AnyValueList when encountering RETURN
   virtual antlrcpp::Any visitSuite(Python3Parser::SuiteContext *ctx) override {
     // std::cout << "visitSuite" << std::endl;
     if (ctx->simple_stmt()) {
@@ -202,7 +210,10 @@ class EvalVisitor : public Python3BaseVisitor {
       // std::cout << "Now run: " << i->getText() << std::endl;
       auto result = visitStmt(i);
       // if (result.is<AnyValueList>()) return result;  // return value of a function
-      if (result.is<AnyValue>()) {
+      if (result.is<AnyValue>()) return result;
+      if (result.is<AnyValueList>()) {
+        // AnyValueList resultVal = result;
+        // if (resultVal.size() == 1) return resultVal[0];
         // BREAK, CONTINUE or RETURN
         // All will stop current suite. So return it directly.
         return result;
@@ -211,10 +222,10 @@ class EvalVisitor : public Python3BaseVisitor {
     return 0;
   }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitTest(Python3Parser::TestContext *ctx) override { return visitOr_test(ctx->or_test()); }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitOr_test(Python3Parser::Or_testContext *ctx) override {
     auto and_tests = ctx->and_test();
     if (and_tests.size() > 1) {
@@ -227,7 +238,7 @@ class EvalVisitor : public Python3BaseVisitor {
     }
   }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitAnd_test(Python3Parser::And_testContext *ctx) override {
     auto not_tests = ctx->not_test();
     if (not_tests.size() > 1) {
@@ -240,7 +251,7 @@ class EvalVisitor : public Python3BaseVisitor {
     }
   }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitNot_test(Python3Parser::Not_testContext *ctx) override {
     if (ctx->not_test())
       return AnyValue(!visitNot_test(ctx->not_test()).as<AnyValue>().toBool());
@@ -248,7 +259,7 @@ class EvalVisitor : public Python3BaseVisitor {
       return visitComparison(ctx->comparison());
   }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitComparison(Python3Parser::ComparisonContext *ctx) override {
     auto arith_exprs = ctx->arith_expr();
     auto arith_exprNum = arith_exprs.size();
@@ -286,7 +297,7 @@ class EvalVisitor : public Python3BaseVisitor {
   // Not used
   virtual antlrcpp::Any visitComp_op(Python3Parser::Comp_opContext *ctx) override { return visitChildren(ctx); }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitArith_expr(Python3Parser::Arith_exprContext *ctx) override {
     auto terms = ctx->term();
     auto termNum = terms.size();
@@ -312,7 +323,7 @@ class EvalVisitor : public Python3BaseVisitor {
   // Not used
   virtual antlrcpp::Any visitAddorsub_op(Python3Parser::Addorsub_opContext *ctx) override { return visitChildren(ctx); }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitTerm(Python3Parser::TermContext *ctx) override {
     auto factors = ctx->factor();
     auto factorNum = factors.size();
@@ -343,7 +354,7 @@ class EvalVisitor : public Python3BaseVisitor {
     return visitChildren(ctx);
   }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitFactor(Python3Parser::FactorContext *ctx) override {
     if (ctx->MINUS()) {
       if (ctx->factor()) {
@@ -358,7 +369,7 @@ class EvalVisitor : public Python3BaseVisitor {
     }
   }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitAtom_expr(Python3Parser::Atom_exprContext *ctx) override {
     if (ctx->trailer()) {
       std::string funcName = ctx->atom()->getText();
@@ -419,7 +430,7 @@ class EvalVisitor : public Python3BaseVisitor {
       // auto result = visitSuite(func.suite).as<AnyValueList>();
       auto result = visitSuite(func.suite);
       scope.quitFunc();
-      if (result.is<AnyValue>()) return result;
+      if (result.is<AnyValue>() || result.is<AnyValueList>()) return result;
       return AnyValue();  // "void" function returns None
 #ifdef DEBUG
       std::cout << "Function " << funcName << " returns: " << returnVal << std::endl;
@@ -432,7 +443,7 @@ class EvalVisitor : public Python3BaseVisitor {
   // Not used
   virtual antlrcpp::Any visitTrailer(Python3Parser::TrailerContext *ctx) override { return visitChildren(ctx); }
 
-  // Returns AnyValue
+  // Returns AnyValue or AnyValueList
   virtual antlrcpp::Any visitAtom(Python3Parser::AtomContext *ctx) override {
     if (ctx->test()) {
       return visitTest(ctx->test());
@@ -477,7 +488,16 @@ class EvalVisitor : public Python3BaseVisitor {
     auto tests = ctx->test();
     AnyValueList ans;
     for (auto i : tests) {
-      ans.push_back(visitTest(i));
+      auto result = visitTest(i);
+      if (result.is<AnyValueList>()) {
+        // unpack return value of function
+        AnyValueList resultVal = result;
+        for (auto i : resultVal) {
+          ans.push_back(i);
+        }
+      } else {
+        ans.push_back(result);
+      }
     }
     return ans;
   }
