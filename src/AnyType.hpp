@@ -23,7 +23,7 @@ class AnyValue {
       case STR:
         return "str";
       case NONETYPE:
-        return "None";
+        return "NoneType";
       default:
         throw Exception(TypeError, "unknown type!");
         break;
@@ -123,6 +123,8 @@ class AnyValue {
       case STR:
         delete (std::string*)value;
         break;
+      case NONETYPE:
+        break;
       default:
         throw Exception(TypeError, "unknown type!");
         break;
@@ -138,11 +140,6 @@ class AnyValue {
   T as() const {
     return *((T*)value);
   }
-  template <typename T>
-  static double convertToFloat(T x) {  // T: BigInt, double, bool
-    return double(x);
-  }
-  static double convertToFloat(std::string x) { return std::stod(x); }
   bool toBool() const {
     switch (type) {
       case BIGINT:
@@ -204,6 +201,8 @@ class AnyValue {
         return std::to_string(as<double>());
       case STR:
         return as<std::string>();
+      case NONETYPE:
+        return "None";
       default:
         throw Exception(TypeError, "unknown type!");
     }
@@ -426,6 +425,5 @@ class AnyValueList {
   auto end() { return list.end(); }
   auto size() { return list.size(); }
 };
-
 
 AnyValue True(true), False(false), None;
