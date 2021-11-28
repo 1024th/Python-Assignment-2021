@@ -278,15 +278,15 @@ class AnyValue {
 
   friend AnyValue operator*(const AnyValue& a, const AnyValue& b) {
     if (a.type == STR) {
-      if (b.type == BIGINT) {
-        return AnyValue(repeatString(a.as<std::string>(), b.as<BigInt>()));
+      if (b.type == BIGINT || b.type == BOOL) {
+        return AnyValue(repeatString(a.as<std::string>(), b.toBigInt()));
       } else {
         throw(TypeError, "can't multiply sequence by non-int of type 'str'");
       }
     }
     if (b.type == STR) {
-      if (a.type == BIGINT) {
-        return AnyValue(repeatString(b.as<std::string>(), a.as<BigInt>()));
+      if (a.type == BIGINT || a.type == BOOL) {
+        return AnyValue(repeatString(b.as<std::string>(), a.toBigInt()));
       } else {
         throw(TypeError, "can't multiply sequence by non-int of type 'str'");
       }
