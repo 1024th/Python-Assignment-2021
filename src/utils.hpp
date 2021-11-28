@@ -102,6 +102,7 @@ class BigInt {
   }
 
   friend BigInt operator-(const BigInt &x) {
+    if (x == 0LL) return x;
     BigInt y(x);
     y.positive = !y.positive;
     return y;
