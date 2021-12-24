@@ -80,6 +80,15 @@ class AnyValue {
         break;
       case NONETYPE:
         type = NONETYPE;
+        value = nullptr;
+        break;
+      case BREAK:
+        type = BREAK;
+        value = nullptr;
+        break;
+      case CONTINUE:
+        type = CONTINUE;
+        value = nullptr;
         break;
       default:
         throw Exception(TypeError, "unknown type!");
