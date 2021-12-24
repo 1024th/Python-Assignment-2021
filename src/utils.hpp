@@ -24,7 +24,7 @@ bool validateVarName(const std::string &str) {
   return true;
 }
 
-const int power = 9;                // 压的位数
+const int power = 9;  // 压的位数
 const long long base = 1000000000;  // 10 的 power 次方
 const int pow10[9] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000};
 
@@ -247,7 +247,7 @@ class BigInt {
         return this->direct_add(x);
       } else {
         this->direct_minus(x);
-        this->positive = !(this->positive);
+        if (highest != 0 || value[0] != 0) this->positive = !(this->positive);
         return *this;
       }
     }
